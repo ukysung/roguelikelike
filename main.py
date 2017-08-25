@@ -1,15 +1,10 @@
 import tdl
 import math
 import random
+import json
 
 screen_width = 80
 screen_height = 50
-
-map_width = 80
-map_height = 40
-
-num_monsters = 10
-num_items = 5
 
 
 class Tile:
@@ -46,13 +41,13 @@ class GameObject:
 
 
 class Player(GameObject):
-    def __init__(self, x, y, char, color, dungeon):
-        self.max_hp = 100
-        self.hp = 100
-        self.defence = 0
-        self.power = 8
-        self.name = 'player'
-        super().__init__(x, y, char, color, dungeon)
+    def __init__(self, x, y, icon_char, player_data, dungeon):
+        self.max_hp = player_data['max_hp']
+        self.hp = self.max_hp
+        self.defence = player_data['defence']
+        self.power = player_data['power']
+        self.name = player_data['name']
+        super().__init__(x, y, icon_char, tuple(player_data['color']), dungeon)
         self.refresh_hp_bar()
 
     def attack(self, target):
@@ -93,13 +88,13 @@ class Player(GameObject):
 
 
 class Monster(GameObject):
-    def __init__(self, *arg, **kwargs):
-        self.max_hp = 10
-        self.hp = 10
-        self.defence = 0
-        self.power = 2
-        self.name = 'monster'
-        super().__init__(*arg, **kwargs)
+    def __init__(self, x, y, icon_char, monster_data, dungeon):
+        self.max_hp = monster_data['max_hp']
+        self.hp = self.max_hp
+        self.defence = monster_data['defence']
+        self.power = monster_data['power']
+        self.name = monster_data['name']
+        super().__init__(x, y, icon_char, tuple(monster_data['color']), dungeon)
 
     def attack(self, target: Player):
         damage = max(self.power - target.defence, 0)
@@ -135,9 +130,10 @@ class Monster(GameObject):
 
 
 class Item(GameObject):
-    def __init__(self, x, y, char, color, dungeon):
-        self.heal_amount = 20
-        super().__init__(x, y, char, color, dungeon)
+    def __init__(self, x, y, icon_char, item_data, dungeon):
+        self.heal_amount = item_data['hp']
+        self.name = item_data['name']
+        super().__init__(x, y, icon_char, tuple(item_data['color']), dungeon)
 
     def pick_up(self, game_object: Player):
         game_object.heal(self.heal_amount)
@@ -145,25 +141,40 @@ class Item(GameObject):
 
 
 class Dungeon:
-    def __init__(self, width, height, object_list):
+    def __init__(self, game_data, object_list):
         self.object_list = object_list
-        self.dungeon_map = [[Tile(True) for _ in range(height)] for _ in range(width)]
+        map_data = list()
+        height = 0
+        for line in game_data['map']:
+            height += 1
+            row_data = list()
+            width = 0
+            for char in line:
+                width += 1
+                if char == '#':
+                    row_data.append(Tile(True))
+                elif char == '.':
+                    row_data.append(Tile(False))
+            self.map_width = width
+            map_data.append(row_data)
+        self.map_height = height
+        self.dungeon_map = map_data
 
     def create_room(self, room):
         for x in range(room.x1 + 1, room.x2):
             for y in range(room.y1 + 1, room.y2):
-                self.dungeon_map[x][y].blocked = False
+                self.dungeon_map[y][x].blocked = False
 
     def create_h_tunnel(self, x1, x2, y):
         for x in range(min(x1, x2), max(x1, x2) + 1):
-            self.dungeon_map[x][y].blocked = False
+            self.dungeon_map[y][x].blocked = False
 
     def create_v_tunnel(self, y1, y2, x):
         for y in range(min(y1, y2), max(y1, y2) + 1):
-            self.dungeon_map[x][y].blocked = False
+            self.dungeon_map[y][x].blocked = False
 
     def is_block(self, x, y):
-        return self.dungeon_map[x][y].blocked
+        return self.dungeon_map[y][x].blocked
 
     def can_move(self, x, y):
         return not self.is_block(x, y) and not any([i.x == x and i.y == y for i in self.object_list])
@@ -184,8 +195,8 @@ class Dungeon:
         self.object_list.remove(game_object)
 
     def draw(self):
-        for y in range(map_height):
-            for x in range(map_width):
+        for y, row in enumerate(self.dungeon_map):
+            for x in range(len(row)):
                 if self.is_block(x, y):
                     _con.draw_char(x, y, '#', fg=(85, 85, 85), bg=None)
                 else:
@@ -256,6 +267,9 @@ def handle_keys(game_object):
 
 
 # initialize
+with open('game_data.json', 'r') as f:
+    game_data = json.load(f)
+
 tdl.set_font('terminal16x16.png', columnFirst=True, greyscale=True)
 _root = tdl.init(screen_width, screen_height, title="로그라이크", fullscreen=False)
 _con = tdl.Console(screen_width, screen_height)
@@ -264,32 +278,41 @@ _text_area = TextArea(0, 42)
 _hp_bar = TextArea(0, 40, 1)
 
 _object_list = list()
-_dungeon = Dungeon(map_width, map_height, _object_list)
-_dungeon.create_room(Rect(10, 10, 20, 20))
-_dungeon.create_room(Rect(50, 10, 20, 20))
-_dungeon.create_h_tunnel(25, 55, 15)
-_dungeon.create_h_tunnel(25, 55, 25)
+_dungeon = Dungeon(game_data, _object_list)
 
-_player = Player(screen_width // 2, screen_height // 2, '@', (85, 85, 255), _dungeon)
-_player.x = 25
-_player.y = 23
-_object_list.append(_player)
+for k, v in game_data['entries'].items():
+    if k in game_data['monsters']:
+        monster_data = game_data['monsters'][k]
 
-while num_monsters > 0:
-    x = random.randint(0, map_width - 1)
-    y = random.randint(0, map_height - 1)
+        num_monsters = v
+        while num_monsters > 0:
+            x = random.randint(0, _dungeon.map_width - 1)
+            y = random.randint(0, _dungeon.map_height - 1)
+            if not _dungeon.is_block(x, y):
+                monster = Monster(x, y, k, monster_data, _dungeon)
+                _object_list.append(monster)
+                num_monsters -= 1
+
+    elif k in game_data['items']:
+        item_data = game_data['items'][k]
+
+        num_items = v
+        while num_items > 0:
+            x = random.randint(0, _dungeon.map_width - 1)
+            y = random.randint(0, _dungeon.map_height - 1)
+            if not _dungeon.is_block(x, y):
+                monster = Item(x, y, k, item_data, _dungeon)
+                _object_list.append(monster)
+                num_items -= 1
+
+while True:
+    x = random.randint(0, _dungeon.map_width - 1)
+    y = random.randint(0, _dungeon.map_height - 1)
     if not _dungeon.is_block(x, y):
-        monster = Monster(x, y, 'B', (255, 85, 85), _dungeon)
-        _object_list.append(monster)
-        num_monsters -= 1
-
-while num_items > 0:
-    x = random.randint(0, map_width - 1)
-    y = random.randint(0, map_height - 1)
-    if not _dungeon.is_block(x, y):
-        item = Item(x, y, 'i', (85, 255, 85), _dungeon)
-        _object_list.append(item)
-        num_items -= 1
+        for k, v in game_data['characters'].items():
+            _player = Player(x, y, k, game_data['characters'][k], _dungeon)
+            _object_list.append(_player)
+        break
 
 # game loop
 while not tdl.event.is_window_closed():
