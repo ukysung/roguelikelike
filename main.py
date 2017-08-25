@@ -8,7 +8,8 @@ screen_height = 50
 map_width = 80
 map_height = 40
 
-num_monsters = 3
+num_monsters = 10
+num_items = 5
 
 
 class Tile:
@@ -49,29 +50,46 @@ class Player(GameObject):
         self.max_hp = 100
         self.hp = 100
         self.defence = 0
-        self.power = 10
+        self.power = 8
+        self.name = 'player'
         super().__init__(x, y, char, color, dungeon)
+        self.refresh_hp_bar()
 
     def attack(self, target):
         damage = max(self.power - target.defence, 0)
+        _text_area('{} attacks {} for {} hit points.'.format(self.name, target.name, damage))
         target.take_damage(damage)
 
     def take_damage(self, damage):
         self.hp -= damage
 
+        self.refresh_hp_bar()
+
         if 0 >= self.hp:
-            pass
+            _text_area('{} died!'.format(self.name))
+
+    def heal(self, amout):
+        self.hp = min(self.max_hp, self.hp + amout)
+        _text_area('{} is starting to feel better!'.format(self.name))
+        self.refresh_hp_bar()
 
     def move(self, dx, dy):
         x = self.x + dx
         y = self.y + dy
 
-        for monster in self.dungeon.get_monsters():
-            if monster.x == x and monster.y == y:
-                self.attack(monster)
-                break
+        for game_object in self.dungeon.get_objects():
+            if game_object.x == x and game_object.y == y:
+                if type(game_object) is Monster:
+                    self.attack(game_object)
+                    break
+                elif type(game_object) is Item:
+                    game_object.pick_up(self)
+                    break
         else:
             super().move(dx, dy)
+
+    def refresh_hp_bar(self):
+        _hp_bar('{} - hp[{}]'.format(self.name, self.hp))
 
 
 class Monster(GameObject):
@@ -80,6 +98,7 @@ class Monster(GameObject):
         self.hp = 10
         self.defence = 0
         self.power = 2
+        self.name = 'monster'
         super().__init__(*arg, **kwargs)
 
     def attack(self, target: Player):
@@ -90,7 +109,8 @@ class Monster(GameObject):
         self.hp -= damage
 
         if 0 >= self.hp:
-            self.dungeon.remove_monster(self)
+            self.dungeon.remove_object(self)
+            _text_area('{} is dead!'.format(self.name))
 
     def _distance_to(self, game_object):
         dx = game_object.x - self.x
@@ -112,6 +132,16 @@ class Monster(GameObject):
             self._move_towards(player)
         else:
             self.attack(player)
+
+
+class Item(GameObject):
+    def __init__(self, x, y, char, color, dungeon):
+        self.heal_amount = 20
+        super().__init__(x, y, char, color, dungeon)
+
+    def pick_up(self, game_object: Player):
+        game_object.heal(self.heal_amount)
+        self.dungeon.remove_object(self)
 
 
 class Dungeon:
@@ -141,23 +171,59 @@ class Dungeon:
     def get_monsters(self):
         return [i for i in self.object_list if isinstance(i, Monster)]
 
+    def get_items(self):
+        return [i for i in self.object_list if isinstance(i, Item)]
+
+    def get_objects(self):
+        return self.object_list
+
     def get_player(self):
         return [i for i in self.object_list if isinstance(i, Player)].pop()
 
-    def remove_monster(self, monster):
-        self.object_list.remove(monster)
+    def remove_object(self, game_object):
+        self.object_list.remove(game_object)
+
+    def draw(self):
+        for y in range(map_height):
+            for x in range(map_width):
+                if self.is_block(x, y):
+                    _con.draw_char(x, y, '#', fg=(85, 85, 85), bg=None)
+                else:
+                    _con.draw_char(x, y, '.', fg=(170, 170, 170), bg=None)
 
 
-def render(area, object_list):
-    for y in range(map_height):
-        for x in range(map_width):
-            if area.is_block(x, y):
-                _con.draw_char(x, y, '#', fg=(85, 85, 85), bg=None)
-            else:
-                _con.draw_char(x, y, '.', fg=(170, 170, 170), bg=None)
+class TextArea:
+    def __init__(self, x, y, num_line=4):
+        self.text_list = list()
+        self.num_line = num_line
+        self.x = x
+        self.y = y
+
+    def __call__(self, text):
+        self.append_text(text)
+
+    def append_text(self, text):
+        self.text_list.append(text)
+
+        if len(self.text_list) > self.num_line:
+            self.text_list.pop(0)
+
+    def draw(self):
+        for i in range(self.num_line + 1):
+            _con.draw_str(self.x, self.y + i, ' ' * 80)
+
+        for i, text in enumerate(self.text_list):
+            _con.draw_str(self.x, self.y + i, text)
+
+
+def render(dungeon, object_list, text_area, hp_bar):
+    dungeon.draw()
 
     for obj in object_list:
         obj.draw()
+
+    hp_bar.draw()
+    text_area.draw()
 
     _root.blit(_con, 0, 0, screen_width, screen_height, 0, 0)
 
@@ -194,11 +260,15 @@ tdl.set_font('terminal16x16.png', columnFirst=True, greyscale=True)
 _root = tdl.init(screen_width, screen_height, title="로그라이크", fullscreen=False)
 _con = tdl.Console(screen_width, screen_height)
 
+_text_area = TextArea(0, 42)
+_hp_bar = TextArea(0, 40, 1)
+
 _object_list = list()
 _dungeon = Dungeon(map_width, map_height, _object_list)
-_dungeon.create_room(Rect(20, 15, 10, 15))
-_dungeon.create_room(Rect(50, 15, 10, 15))
-_dungeon.create_h_tunnel(25, 55, 23)
+_dungeon.create_room(Rect(10, 10, 20, 20))
+_dungeon.create_room(Rect(50, 10, 20, 20))
+_dungeon.create_h_tunnel(25, 55, 15)
+_dungeon.create_h_tunnel(25, 55, 25)
 
 _player = Player(screen_width // 2, screen_height // 2, '@', (85, 85, 255), _dungeon)
 _player.x = 25
@@ -213,9 +283,18 @@ while num_monsters > 0:
         _object_list.append(monster)
         num_monsters -= 1
 
+while num_items > 0:
+    x = random.randint(0, map_width - 1)
+    y = random.randint(0, map_height - 1)
+    if not _dungeon.is_block(x, y):
+        item = Item(x, y, 'i', (85, 255, 85), _dungeon)
+        _object_list.append(item)
+        num_items -= 1
+
 # game loop
 while not tdl.event.is_window_closed():
-    render(_dungeon, _object_list)
+
+    render(_dungeon, _object_list, _text_area, _hp_bar)
 
     exit_game = handle_keys(_player)
     if exit_game:
