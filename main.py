@@ -10,6 +10,7 @@ screen_height = 50
 class Tile:
     def __init__(self, blocked):
         self.blocked = blocked
+        self.light = 0
 
 
 class Rect:
@@ -159,6 +160,7 @@ class Dungeon:
             map_data.append(row_data)
         self.map_height = height
         self.dungeon_map = map_data
+        self.flag = 0
 
     def create_room(self, room):
         for x in range(room.x1 + 1, room.x2):
@@ -197,10 +199,72 @@ class Dungeon:
     def draw(self):
         for y, row in enumerate(self.dungeon_map):
             for x in range(len(row)):
-                if self.is_block(x, y):
-                    _con.draw_char(x, y, '#', fg=(85, 85, 85), bg=None)
+                if self.is_light(x, y):
+                    if self.is_block(x, y):
+                        _con.draw_char(x, y, '#', fg=(85, 85, 85), bg=None)
+                    else:
+                        _con.draw_char(x, y, '.', fg=(170, 170, 170), bg=None)
                 else:
-                    _con.draw_char(x, y, '.', fg=(170, 170, 170), bg=None)
+                    _con.draw_char(x, y, ' ', fg=None, bg=None)
+
+    # Multipliers for transforming coordinates to other octants:
+    mult = [
+        [1, 0, 0, -1, -1, 0, 0, 1],
+        [0, 1, -1, 0, 0, -1, 1, 0],
+        [0, 1, 1, 0, 0, -1, -1, 0],
+        [1, 0, 0, 1, -1, 0, 0, -1]
+    ]
+
+    def is_light(self, x, y):
+        return self.dungeon_map[y][x].light == self.flag
+
+    def set_light(self, x, y):
+        self.dungeon_map[y][x].light = self.flag
+
+    def _cast_light(self, cx, cy, row, start, end, radius, xx, xy, yx, yy, id):
+        if start < end:
+            return
+
+        radius_squared = radius * radius
+        for j in range(row, radius + 1):
+            dx, dy = -j - 1, -j
+            blocked = False
+            while dx <= 0:
+                dx += 1
+
+                X, Y = cx + dx * xx + dy * xy, cy + dx * yx + dy * yy
+
+                l_slope, r_slope = (dx - 0.5) / (dy + 0.5), (dx + 0.5) / (dy - 0.5)
+                if start < r_slope:
+                    continue
+                elif end > l_slope:
+                    break
+                else:
+                    if dx * dx + dy * dy < radius_squared:
+                        self.set_light(X, Y)
+                    if blocked:
+                        if self.is_block(X, Y):
+                            new_start = r_slope
+                            continue
+                        else:
+                            blocked = False
+                            start = new_start
+                    else:
+                        if self.is_block(X, Y) and j < radius:
+                            blocked = True
+                            self._cast_light(cx, cy, j + 1, start, l_slope,
+                                             radius, xx, xy, yx, yy, id + 1)
+                            new_start = r_slope
+
+            if blocked:
+                break
+
+    def do_fov(self, x, y, radius):
+        self.flag += 1
+        for oct in range(8):
+            self._cast_light(x, y, 1, 1.0, 0.0, radius,
+                             self.mult[0][oct], self.mult[1][oct],
+                             self.mult[2][oct], self.mult[3][oct], 0)
 
 
 class TextArea:
@@ -231,7 +295,8 @@ def render(dungeon, object_list, text_area, hp_bar):
     dungeon.draw()
 
     for obj in object_list:
-        obj.draw()
+        if type(obj) is Player or dungeon.is_light(obj.x, obj.y):
+            obj.draw()
 
     hp_bar.draw()
     text_area.draw()
@@ -317,6 +382,7 @@ while True:
 # game loop
 while not tdl.event.is_window_closed():
 
+    _dungeon.do_fov(_player.x, _player.y, 10)
     render(_dungeon, _object_list, _text_area, _hp_bar)
 
     exit_game = handle_keys(_player)
