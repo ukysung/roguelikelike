@@ -2,13 +2,14 @@ import tdl
 import math
 import random
 import json
+import enum
 
 screen_width = 80
 screen_height = 50
 
 
 class Tile:
-    def __init__(self, blocked):
+    def __init__(self, blocked=None):
         self.blocked = blocked
         self.light = 0
 
@@ -141,25 +142,22 @@ class Item(GameObject):
         self.dungeon.remove_object(self)
 
 
+class Direction(enum.Enum):
+    invalid = -1
+
+    up = 0
+    right = 1
+    down = 2
+    left = 3
+
+
 class Dungeon:
     def __init__(self, game_data, object_list):
         self.object_list = object_list
-        map_data = list()
-        height = 0
-        for line in game_data['map']:
-            height += 1
-            row_data = list()
-            width = 0
-            for char in line:
-                width += 1
-                if char == '#':
-                    row_data.append(Tile(True))
-                elif char == '.':
-                    row_data.append(Tile(False))
-            self.map_width = width
-            map_data.append(row_data)
-        self.map_height = height
-        self.dungeon_map = map_data
+        self.map_width = game_data['dungeon']['width']
+        self.map_height = game_data['dungeon']['height']
+        self.max_features = game_data['dungeon']['features']
+        self.dungeon_map = [[Tile() for _ in range(self.map_width)] for _ in range(self.map_height)]
         self.flag = 0
 
     def create_room(self, room):
@@ -176,7 +174,13 @@ class Dungeon:
             self.dungeon_map[y][x].blocked = False
 
     def is_block(self, x, y):
-        return self.dungeon_map[y][x].blocked
+        return self.dungeon_map[y][x].blocked in (True, None)
+
+    def can_make_tile(self, x, y):
+        return self.dungeon_map[y][x].blocked is None
+
+    def set_block(self, x, y, is_block):
+        self.dungeon_map[y][x].blocked = is_block
 
     def can_move(self, x, y):
         return not self.is_block(x, y) and not any([i.x == x and i.y == y for i in self.object_list])
@@ -201,6 +205,8 @@ class Dungeon:
             for x in range(len(row)):
                 if self.is_light(x, y):
                     if self.is_block(x, y):
+                        _con.draw_char(x, y, '#', fg=(85, 85, 85), bg=None)
+                    elif self.is_block(x, y) is None:
                         _con.draw_char(x, y, '#', fg=(85, 85, 85), bg=None)
                     else:
                         _con.draw_char(x, y, '.', fg=(170, 170, 170), bg=None)
@@ -265,6 +271,230 @@ class Dungeon:
             self._cast_light(x, y, 1, 1.0, 0.0, radius,
                              self.mult[0][oct], self.mult[1][oct],
                              self.mult[2][oct], self.mult[3][oct], 0)
+
+    def make_tunnel(self, center_x, center_y, length, direction):
+        length = random.randint(2, length)
+
+        if direction == Direction.up:
+            if center_x < 0 or center_x > self.map_width - 1:
+                return False
+
+            for y in range(center_y, center_y - length, -1):
+                if y < 0 or y > self.map_height - 1:
+                    return False
+
+                if not self.can_make_tile(center_x, y):
+                    return False
+
+            for y in range(center_y, center_y - length, -1):
+                self.set_block(center_x, y, False)
+
+        elif direction == Direction.right:
+            if center_y < 0 or center_y > self.map_height - 1:
+                return False
+
+            for y in range(center_x, center_x + length):
+                if 0 > y or y > self.map_height - 1:
+                    return False
+
+                if not self.can_make_tile(y, center_y):
+                    return False
+
+            for y in range(center_x, center_x + length):
+                self.set_block(y, center_y, False)
+
+        elif direction == Direction.down:
+            if center_x < 0 or center_x > self.map_width - 1:
+                return False
+
+            for y in range(center_y, center_y + length):
+                if y < 0 or y > self.map_height - 1:
+                    return False
+
+                if not self.can_make_tile(center_x, y):
+                    return False
+
+            for y in range(center_y, center_y + length):
+                self.set_block(center_x, y, False)
+
+        elif direction == Direction.left:
+            if center_y < 0 or center_y > self.map_height - 1:
+                return False
+
+            for y in range(center_x, center_x - length, -1):
+                if y < 0 or y > self.map_height - 1:
+                    return False
+
+                if not self.can_make_tile(y, center_y):
+                    return False
+
+            for y in range(center_x, center_x - length, -1):
+                self.set_block(y, center_y, False)
+
+        return True
+
+    def make_room(self, center_x, center_y, width, height, direction):
+        room_width = random.randint(4, width)
+        room_height = random.randint(4, height)
+
+        if direction == Direction.invalid:
+            return False
+
+        if direction == Direction.up:
+            for y in range(center_y, center_y - room_height, -1):
+                if y < 0 or y > self.map_height - 1:
+                    return False
+                
+                for x in range(center_x - room_width // 2, (center_x + (room_width + 1) // 2)):
+                    if x < 0 or x > self.map_width - 1:
+                        return False
+                    
+                    if not self.can_make_tile(x, y):
+                        return False
+
+            for y in range(center_y, center_y - room_height, -1):
+                for x in range(center_x - room_width // 2, (center_x + (room_width + 1) // 2)):
+                    if x == center_x - room_width // 2:
+                        self.set_block(x, y, True)
+                    elif x == center_x + (room_width - 1) // 2:
+                        self.set_block(x, y, True)
+                    elif y == center_y:
+                        self.set_block(x, y, True)
+                    elif y == center_y - room_height + 1:
+                        self.set_block(x, y, True)
+                    else:
+                        self.set_block(x, y, False)
+                        
+        elif direction == Direction.right:
+            for y in range(center_y - room_height // 2, center_y + (room_height + 1) // 2):
+                if y < 0 or y > self.map_height - 1:
+                    return False
+                
+                for x in range(center_x, center_x + room_width):
+                    if x < 0 or x > self.map_width - 1:
+                        return False
+                    
+                    if not self.can_make_tile(x, y):
+                        return False
+
+            for y in range(center_y - room_height // 2, center_y + (room_height + 1) // 2):
+                for x in range(center_x, center_x + room_width):
+                    if x == center_x:
+                        self.set_block(x, y, True)
+                    elif x == center_x + (room_width - 1):
+                        self.set_block(x, y, True)
+                    elif y == center_y - room_height // 2:
+                        self.set_block(x, y, True)
+                    elif y == center_y + (room_height - 1) // 2:
+                        self.set_block(x, y, True)
+                    else:
+                        self.set_block(x, y, False)
+                        
+        elif direction == Direction.down:
+            for y in range(center_y, center_y + room_height):
+                if y < 0 or y > self.map_height - 1:
+                    return False
+                
+                for x in range(center_x - room_width // 2, center_x + (room_width + 1) // 2):
+                    if x < 0 or x > self.map_width - 1:
+                        return False
+                    
+                    if not self.can_make_tile(x, y):
+                        return False
+
+            for y in range(center_y, center_y + room_height):
+                for x in range(center_x - room_width // 2, center_x + (room_width + 1) // 2):
+                    if x == center_x - room_width // 2:
+                        self.set_block(x, y, True)
+                    elif x == center_x + (room_width - 1) // 2:
+                        self.set_block(x, y, True)
+                    elif y == center_y:
+                        self.set_block(x, y, True)
+                    elif y == center_y + (room_height - 1):
+                        self.set_block(x, y, True)
+                    else:
+                        self.set_block(x, y, False)
+                        
+        elif direction == Direction.left:
+            for y in range(center_y - room_height // 2, center_y + (room_height + 1) // 2):
+                if y < 0 or y > self.map_height - 1:
+                    return False
+                
+                for x in range(center_x, center_x - room_width, -1):
+                    if x < 0 or x > self.map_width - 1:
+                        return False
+                    
+                    if not self.can_make_tile(x, y):
+                        return False
+
+            for y in range(center_y - room_height // 2, center_y + (room_height + 1) // 2):
+                for x in range(center_x, center_x - room_width - 1, -1):
+                    if x == center_x:
+                        self.set_block(x, y, True)
+                    elif x == center_x - room_width:
+                        self.set_block(x, y, True)
+                    elif y == center_y - room_height // 2:
+                        self.set_block(x, y, True)
+                    elif y == center_y + (room_height - 1) // 2:
+                        self.set_block(x, y, True)
+                    else:
+                        self.set_block(x, y, False)
+
+        return True
+
+    def generate_map(self):
+        room_chance = 70
+        current_features = 1
+
+        self.make_room(self.map_width // 2, self.map_height // 2, 5, 5, Direction(random.randint(0, 3)))
+
+        for _ in range(1000):
+            if current_features >= self.max_features:
+                break
+
+            new_x = 0
+            x_mod = 0
+            new_y = 0
+            y_mod = 0
+
+            for _ in range(1000):
+                new_x = random.randint(1, self.map_width - 2)
+                new_y = random.randint(1, self.map_height - 2)
+                direction = Direction.invalid
+
+                if self.is_block(new_x, new_y):
+                    if self.is_block(new_x, new_y + 1) is False:
+                        x_mod = 0
+                        y_mod = -1
+                        direction = Direction.up
+                    elif self.is_block(new_x - 1, new_y) is False:
+                        x_mod = 1
+                        y_mod = 0
+                        direction = Direction.right
+                    elif self.is_block(new_x, new_y - 1) is False:
+                        x_mod = 0
+                        y_mod = 1
+                        direction = Direction.down
+                    elif self.is_block(new_x + 1, new_y) is False:
+                        x_mod = -1
+                        y_mod = 0
+                        direction = Direction.left
+
+                    if direction is not Direction.invalid:
+                        break
+
+            if direction is not Direction.invalid:
+                feature = random.randint(0, 100)
+
+                if feature <= room_chance:
+                    if self.make_room(new_x + x_mod, new_y + y_mod, 20, 20, direction):
+                        self.set_block(new_x, new_y, False)
+                        self.set_block(new_x + x_mod, new_y + y_mod, False)
+                elif feature > room_chance:
+                    if self.make_tunnel(new_x + x_mod, new_y + y_mod, 10, direction):
+                        self.set_block(new_x, new_y, False)
+
+                current_features += 1
 
 
 class TextArea:
@@ -344,6 +574,7 @@ _hp_bar = TextArea(0, 40, 1)
 
 _object_list = list()
 _dungeon = Dungeon(game_data, _object_list)
+_dungeon.generate_map()
 
 for k, v in game_data['entries'].items():
     if k in game_data['monsters']:
