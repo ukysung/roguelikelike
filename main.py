@@ -235,6 +235,7 @@ class Dungeon:
         for j in range(row, radius + 1):
             dx, dy = -j - 1, -j
             blocked = False
+
             while dx <= 0:
                 dx += 1
 
@@ -248,6 +249,7 @@ class Dungeon:
                 else:
                     if dx * dx + dy * dy < radius_squared:
                         self.set_light(X, Y)
+
                     if blocked:
                         if self.is_block(X, Y):
                             new_start = r_slope
@@ -560,65 +562,70 @@ def handle_keys(game_object):
     if user_input.key == 'RIGHT':
         game_object.move(1, 0)
 
+if __name__ == "__main__":
+    # 게임 데이터 로드
+    with open('game_data.json', 'r') as f:
+        game_data = json.load(f)
 
-# initialize
-with open('game_data.json', 'r') as f:
-    game_data = json.load(f)
+    # tdl 라이브러리 초기화 : 폰트, 콘솔
+    tdl.set_font('terminal16x16.png', columnFirst=True, greyscale=True)
+    _root = tdl.init(screen_width, screen_height, title="로그라이크", fullscreen=False)
+    _con = tdl.Console(screen_width, screen_height)
 
-tdl.set_font('terminal16x16.png', columnFirst=True, greyscale=True)
-_root = tdl.init(screen_width, screen_height, title="로그라이크", fullscreen=False)
-_con = tdl.Console(screen_width, screen_height)
+    # UI 생성
+    _text_area = TextArea(0, 42)
+    _hp_bar = TextArea(0, 40, 1)
 
-_text_area = TextArea(0, 42)
-_hp_bar = TextArea(0, 40, 1)
+    # 던전 생성 및 맵 자동 생성
+    _object_list = list()
+    _dungeon = Dungeon(game_data, _object_list)
+    _dungeon.generate_map()
 
-_object_list = list()
-_dungeon = Dungeon(game_data, _object_list)
-_dungeon.generate_map()
+    # 몬스터, 아이템 생성 및 배치
+    for k, v in game_data['entries'].items():
+        if k in game_data['monsters']:
+            monster_data = game_data['monsters'][k]
 
-for k, v in game_data['entries'].items():
-    if k in game_data['monsters']:
-        monster_data = game_data['monsters'][k]
+            num_monsters = v
+            while num_monsters > 0:
+                x = random.randint(0, _dungeon.map_width - 1)
+                y = random.randint(0, _dungeon.map_height - 1)
+                if not _dungeon.is_block(x, y):
+                    monster = Monster(x, y, k, monster_data, _dungeon)
+                    _object_list.append(monster)
+                    num_monsters -= 1
 
-        num_monsters = v
-        while num_monsters > 0:
-            x = random.randint(0, _dungeon.map_width - 1)
-            y = random.randint(0, _dungeon.map_height - 1)
-            if not _dungeon.is_block(x, y):
-                monster = Monster(x, y, k, monster_data, _dungeon)
-                _object_list.append(monster)
-                num_monsters -= 1
+        elif k in game_data['items']:
+            item_data = game_data['items'][k]
 
-    elif k in game_data['items']:
-        item_data = game_data['items'][k]
+            num_items = v
+            while num_items > 0:
+                x = random.randint(0, _dungeon.map_width - 1)
+                y = random.randint(0, _dungeon.map_height - 1)
+                if not _dungeon.is_block(x, y):
+                    monster = Item(x, y, k, item_data, _dungeon)
+                    _object_list.append(monster)
+                    num_items -= 1
 
-        num_items = v
-        while num_items > 0:
-            x = random.randint(0, _dungeon.map_width - 1)
-            y = random.randint(0, _dungeon.map_height - 1)
-            if not _dungeon.is_block(x, y):
-                monster = Item(x, y, k, item_data, _dungeon)
-                _object_list.append(monster)
-                num_items -= 1
+    # 플레이어 배치
+    while True:
+        x = random.randint(0, _dungeon.map_width - 1)
+        y = random.randint(0, _dungeon.map_height - 1)
+        if not _dungeon.is_block(x, y):
+            for k, v in game_data['characters'].items():
+                _player = Player(x, y, k, game_data['characters'][k], _dungeon)
+                _object_list.append(_player)
+            break
 
-while True:
-    x = random.randint(0, _dungeon.map_width - 1)
-    y = random.randint(0, _dungeon.map_height - 1)
-    if not _dungeon.is_block(x, y):
-        for k, v in game_data['characters'].items():
-            _player = Player(x, y, k, game_data['characters'][k], _dungeon)
-            _object_list.append(_player)
-        break
+    # game loop
+    while not tdl.event.is_window_closed():
 
-# game loop
-while not tdl.event.is_window_closed():
+        _dungeon.do_fov(_player.x, _player.y, 10)
+        render(_dungeon, _object_list, _text_area, _hp_bar)
 
-    _dungeon.do_fov(_player.x, _player.y, 10)
-    render(_dungeon, _object_list, _text_area, _hp_bar)
+        exit_game = handle_keys(_player)
+        if exit_game:
+            break
 
-    exit_game = handle_keys(_player)
-    if exit_game:
-        break
-
-    for monster in _dungeon.get_monsters():
-        monster.take_turn()
+        for monster in _dungeon.get_monsters():
+            monster.take_turn()
