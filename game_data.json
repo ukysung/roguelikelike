@@ -6,6 +6,7 @@
             "max_hp": 100,
             "power": 5,
             "defence": 1,
+            "sight": 10,
             "name": "fighter",
             "color": [85, 85, 255]
         }
@@ -15,7 +16,7 @@
         "B":
         {
             "max_hp": 10,
-            "power": 1,
+            "power": 2,
             "defence": 0,
             "name": "bat",
             "color": [255, 85, 85]
@@ -23,26 +24,56 @@
         "O":
         {
             "max_hp": 30,
-            "power": 3,
+            "power": 4,
             "defence": 1,
             "name": "orc",
             "color": [255, 85, 85]
+        },
+        "D":
+        {
+            "max_hp": 70,
+            "power": 6,
+            "defence": 2,
+            "name": "devil",
+            "color": [255, 0, 0]
         }
     },
     "items":
     {
-        "I":
+        "H":
         {
-            "hp": 20,
+            "hp": 15,
             "name": "healing potion",
+            "color": [85, 255, 85]
+        },
+        "P":
+        {
+            "power": 3,
+            "name": "power up",
+            "color": [85, 255, 85]
+        },
+        "D":
+        {
+            "defence": 2,
+            "name": "increase defence points",
+            "color": [85, 255, 85]
+        },
+        "s":
+        {
+            "sight": 3,
+            "name": "increase sight points",
             "color": [85, 255, 85]
         }
     },
     "entries":
     {
-        "B": 4,
-        "O": 1,
-        "I": 2
+        "B": 10,
+        "O": 4,
+        "D": 1,
+        "H": 10,
+        "P": 1,
+        "D": 1,
+        "s": 2
     },
     "dungeon":
     {

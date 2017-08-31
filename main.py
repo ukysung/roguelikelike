@@ -48,9 +48,11 @@ class Player(GameObject):
         self.hp = self.max_hp
         self.defence = player_data['defence']
         self.power = player_data['power']
+        self.sight = player_data['sight']
         self.name = player_data['name']
+        self.end = False
         super().__init__(x, y, icon_char, tuple(player_data['color']), dungeon)
-        self.refresh_hp_bar()
+        self.refresh_status_bar()
 
     def attack(self, target):
         damage = max(self.power - target.defence, 0)
@@ -58,19 +60,33 @@ class Player(GameObject):
         target.take_damage(damage)
 
     def take_damage(self, damage):
-        self.hp -= damage
+        self.hp = max(self.hp - damage, 0)
 
-        self.refresh_hp_bar()
+        self.refresh_status_bar()
 
         if 0 >= self.hp:
+            self.end = True
+            self.color = (85, 85, 85)
             _text_area('{} died!'.format(self.name))
+            _text_area('press any key to continue...', fg_color=(85, 85, 255))
 
-    def heal(self, amout):
-        self.hp = min(self.max_hp, self.hp + amout)
-        _text_area('{} is starting to feel better!'.format(self.name))
-        self.refresh_hp_bar()
+    def use_item(self, item):
+        self.hp = min(self.max_hp, self.hp + item.heal_amount)
+        self.power += item.power_amount
+        self.defence += item.defence_amount
+        self.sight += item.sight_amount
+        _text_area('{} is starting to feel better!({})'.format(self.name, item.name))
+        self.refresh_status_bar()
+
+    def clear_dungeon(self):
+        self.end = True
+        _text_area('Game clear(Exit from the dungeon)')
+        _text_area('press any key to continue...', fg_color=(85, 85, 255))
 
     def move(self, dx, dy):
+        if self.is_end():
+            return
+
         x = self.x + dx
         y = self.y + dy
 
@@ -82,11 +98,25 @@ class Player(GameObject):
                 elif type(game_object) is Item:
                     game_object.pick_up(self)
                     break
+                elif type(game_object) is Goal:
+                    game_object.touch(self)
+                    break
         else:
             super().move(dx, dy)
 
-    def refresh_hp_bar(self):
-        _hp_bar('{} - hp[{}]'.format(self.name, self.hp))
+    def refresh_status_bar(self):
+        _status_bar(
+            '{} - hp[{}] power[{}] defence[{}] sight[{}]'.format(
+                self.name,
+                self.hp,
+                self.power,
+                self.defence,
+                self.sight
+            )
+        )
+
+    def is_end(self):
+        return self.end
 
 
 class Monster(GameObject):
@@ -99,7 +129,11 @@ class Monster(GameObject):
         super().__init__(x, y, icon_char, tuple(monster_data['color']), dungeon)
 
     def attack(self, target: Player):
+        if target.is_end():
+            return
+
         damage = max(self.power - target.defence, 0)
+        _text_area('{} attacks {} for {} hit points.'.format(self.name, target.name, damage))
         target.take_damage(damage)
 
     def take_damage(self, damage):
@@ -133,12 +167,24 @@ class Monster(GameObject):
 
 class Item(GameObject):
     def __init__(self, x, y, icon_char, item_data, dungeon):
-        self.heal_amount = item_data['hp']
+        self.heal_amount = item_data.get('hp', 0)
+        self.defence_amount = item_data.get('defence', 0)
+        self.power_amount = item_data.get('power', 0)
+        self.sight_amount = item_data.get('sight', 0)
         self.name = item_data['name']
         super().__init__(x, y, icon_char, tuple(item_data['color']), dungeon)
 
     def pick_up(self, game_object: Player):
-        game_object.heal(self.heal_amount)
+        game_object.use_item(self)
+        self.dungeon.remove_object(self)
+
+
+class Goal(GameObject):
+    def __init__(self, x, y, dungeon):
+        super().__init__(x, y, 'G', (255, 255, 255), dungeon)
+
+    def touch(self, target):
+        target.clear_dungeon()
         self.dungeon.remove_object(self)
 
 
@@ -500,17 +546,18 @@ class Dungeon:
 
 
 class TextArea:
-    def __init__(self, x, y, num_line=4):
+    def __init__(self, x, y, num_line=4, bg_color=None):
         self.text_list = list()
         self.num_line = num_line
         self.x = x
         self.y = y
+        self.bg_color = bg_color
 
-    def __call__(self, text):
-        self.append_text(text)
+    def __call__(self, text, *, fg_color=None):
+        self.append_text(text, fg_color)
 
-    def append_text(self, text):
-        self.text_list.append(text)
+    def append_text(self, text, fg_color):
+        self.text_list.append((text, fg_color))
 
         if len(self.text_list) > self.num_line:
             self.text_list.pop(0)
@@ -519,8 +566,11 @@ class TextArea:
         for i in range(self.num_line + 1):
             _con.draw_str(self.x, self.y + i, ' ' * 80)
 
-        for i, text in enumerate(self.text_list):
-            _con.draw_str(self.x, self.y + i, text)
+        for i, (text, fg_color) in enumerate(self.text_list):
+            _con.draw_str(self.x, self.y + i, text, fg=fg_color, bg=self.bg_color)
+
+    def clear(self):
+        self.text_list = list()
 
 
 def render(dungeon, object_list, text_area, hp_bar):
@@ -562,20 +612,8 @@ def handle_keys(game_object):
     if user_input.key == 'RIGHT':
         game_object.move(1, 0)
 
-if __name__ == "__main__":
-    # 게임 데이터 로드
-    with open('game_data.json', 'r') as f:
-        game_data = json.load(f)
 
-    # tdl 라이브러리 초기화 : 폰트, 콘솔
-    tdl.set_font('terminal16x16.png', columnFirst=True, greyscale=True)
-    _root = tdl.init(screen_width, screen_height, title="로그라이크", fullscreen=False)
-    _con = tdl.Console(screen_width, screen_height)
-
-    # UI 생성
-    _text_area = TextArea(0, 42)
-    _hp_bar = TextArea(0, 40, 1)
-
+def initialize(game_data):
     # 던전 생성 및 맵 자동 생성
     _object_list = list()
     _dungeon = Dungeon(game_data, _object_list)
@@ -617,11 +655,39 @@ if __name__ == "__main__":
                 _object_list.append(_player)
             break
 
+    # 탈출구 배치
+    while True:
+        x = random.randint(0, _dungeon.map_width - 1)
+        y = random.randint(0, _dungeon.map_height - 1)
+        if not _dungeon.is_block(x, y):
+            _object_list.append(Goal(x, y, _dungeon))
+            break
+
+    return _player, _object_list, _dungeon
+
+if __name__ == "__main__":
+    # 게임 데이터 로드
+    with open('game_data.json', 'r') as f:
+        game_data = json.load(f)
+
+    # tdl 라이브러리 초기화 : 폰트, 콘솔
+    tdl.set_font('terminal16x16.png', columnFirst=True, greyscale=True)
+    _root = tdl.init(screen_width, screen_height, title="로그라이크", fullscreen=False)
+    _con = tdl.Console(screen_width, screen_height)
+
+    # UI 생성
+    _text_area = TextArea(0, 42)
+    _status_bar = TextArea(0, 40, 1, (160, 160, 160))
+    _player, _object_list, _dungeon = initialize(game_data)
+
     # game loop
     while not tdl.event.is_window_closed():
+        _dungeon.do_fov(_player.x, _player.y, _player.sight)
+        render(_dungeon, _object_list, _text_area, _status_bar)
 
-        _dungeon.do_fov(_player.x, _player.y, 10)
-        render(_dungeon, _object_list, _text_area, _hp_bar)
+        if _player.is_end():
+            _player, _object_list, _dungeon = initialize(game_data)
+            _text_area.clear()
 
         exit_game = handle_keys(_player)
         if exit_game:
