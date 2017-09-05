@@ -578,12 +578,9 @@ class TextArea:
 
 
 class Game:
-    def __init__(self):
-        # 게임 데이터 로드
-        with open('game_data.json', 'r') as f:
-            self.game_data = json.load(f)
+    def __init__(self, game_data):
+        self.game_data = game_data
 
-        # tdl 라이브러리 초기화 : 폰트, 콘솔
         self._buffer = [[(' ', (0, 0, 0)) for _ in range(screen_width)] for _ in range(screen_height)]
 
         # UI 생성
@@ -625,7 +622,7 @@ class Game:
         for line in self._buffer:
             for letter, color in line:
                 if color != (0, 0, 0):
-                    color_str = ''.join(format(e, 'X') for e in color)
+                    color_str = ''.join(format(e, '02X') for e in color)
                     raw_text += '[[;#{};]{}]'.format(color_str, letter)
                 else:
                     raw_text += letter

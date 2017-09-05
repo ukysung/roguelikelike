@@ -4,22 +4,51 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.6.4/js/jquery.terminal.min.js"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.6.4/css/jquery.terminal.min.css" rel="stylesheet"/>
 <body>
+    <div id="term">
+    </div>
 </body>
+<style>
+    .terminal, .cmd, .terminal .terminal-output div div, .cmd .prompt {
+        font-size: 15px;
+        line-height: 12px;
+    }
+</style>
 <script type="text/javascript">
     jQuery(function($, undefined) {
-        $('body').terminal(function(command, term) {
+        $('#term').terminal(function(command, term) {
 
         }, {
-            greetings: '',
+            greetings: null,
+            wrap: false,
+            numChars: 80,
+            numRows: 50,
+            echoCommand: false,
+            prompt: '',
             onBlur: function() {
                 return false;
             },
             keydown: function (e, term) {
+                term.set_command('');
                 if ([37, 38, 39, 40].indexOf(e.which) > -1) {
-                    term.pause();
-                    term.clear()
                     $.post('/command', {direction: e.which}).then(function(response) {
-                        term.echo(response).resume();
+                        if (response != '')
+                        {
+                            term.pause();
+                            term.clear();
+                            term.echo(response).resume();
+                        }
+                    });
+                }
+            },
+            onInit: function (e, term) {
+                if ([37, 38, 39, 40].indexOf(e.which) > -1) {
+                    $.post('/command', {direction: e.which}).then(function(response) {
+                        if (response != '')
+                        {
+                            term.pause();
+                            term.clear();
+                            term.echo(response).resume();
+                        }
                     });
                 }
             }
