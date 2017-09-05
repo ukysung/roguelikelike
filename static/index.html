@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.6.4/js/jquery.terminal.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.6.4/css/jquery.terminal.min.css" rel="stylesheet"/>
+<body>
+</body>
+<script type="text/javascript">
+    jQuery(function($, undefined) {
+        $('body').terminal(function(command, term) {
+
+        }, {
+            greetings: '',
+            onBlur: function() {
+                return false;
+            },
+            keydown: function (e, term) {
+                if ([37, 38, 39, 40].indexOf(e.which) > -1) {
+                    term.pause();
+                    term.clear()
+                    $.post('/command', {direction: e.which}).then(function(response) {
+                        term.echo(response).resume();
+                    });
+                }
+            }
+        });
+    });
+</script>
+</html>
