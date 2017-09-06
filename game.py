@@ -1,7 +1,8 @@
 import math
-import random
-import json
+import pickle
 import enum
+import base64
+from random import Random
 
 screen_width = 80
 screen_height = 50
@@ -51,6 +52,7 @@ class Player(GameObject):
         self.sight = player_data['sight']
         self.name = player_data['name']
         self.end = False
+        self.turn_count = 0
         super().__init__(game, x, y, icon_char, tuple(player_data['color']), dungeon)
         self.refresh_status_bar()
 
@@ -76,7 +78,6 @@ class Player(GameObject):
         self.defence += item.defence_amount
         self.sight += item.sight_amount
         self.game.text_area('{} is starting to feel better!({})'.format(self.name, item.name))
-        self.refresh_status_bar()
 
     def clear_dungeon(self):
         self.end = True
@@ -85,10 +86,12 @@ class Player(GameObject):
 
     def move(self, dx, dy):
         if self.is_end():
-            return
+            return False
 
         x = self.x + dx
         y = self.y + dy
+
+        self.turn_count += 1
 
         for game_object in self.dungeon.get_objects():
             if game_object.x == x and game_object.y == y:
@@ -104,14 +107,17 @@ class Player(GameObject):
         else:
             super().move(dx, dy)
 
+        self.refresh_status_bar()
+
     def refresh_status_bar(self):
         self.game.status_bar(
-            '{} - hp[{}] power[{}] defence[{}] sight[{}]'.format(
+            '{} - hp[{}] power[{}] defence[{}] sight[{}] turn[{}]'.format(
                 self.name,
                 self.hp,
                 self.power,
                 self.defence,
-                self.sight
+                self.sight,
+                self.turn_count
             )
         )
 
@@ -184,6 +190,7 @@ class Goal(GameObject):
         super().__init__(game, x, y, 'G', (255, 255, 255), dungeon)
 
     def touch(self, target):
+        self.game.save()
         target.clear_dungeon()
         self.dungeon.remove_object(self)
 
@@ -222,7 +229,9 @@ class Dungeon:
             self.dungeon_map[y][x].blocked = False
 
     def is_block(self, x, y):
-        return self.dungeon_map[y][x].blocked in (True, None)
+        if self.map_width > x and self.map_height > y:
+            return self.dungeon_map[y][x].blocked in (True, None)
+        return True
 
     def can_make_tile(self, x, y):
         return self.dungeon_map[y][x].blocked is None
@@ -273,7 +282,8 @@ class Dungeon:
         return self.dungeon_map[y][x].light == self.flag
 
     def set_light(self, x, y):
-        self.dungeon_map[y][x].light = self.flag
+        if self.map_width > x and self.map_height > y:
+            self.dungeon_map[y][x].light = self.flag
 
     def _cast_light(self, cx, cy, row, start, end, radius, xx, xy, yx, yy, id):
         if start < end:
@@ -322,7 +332,7 @@ class Dungeon:
                              self.mult[0][oct], self.mult[1][oct],
                              self.mult[2][oct], self.mult[3][oct], 0)
 
-    def make_tunnel(self, center_x, center_y, length, direction):
+    def make_tunnel(self, center_x, center_y, length, direction, random):
         length = random.randint(2, length)
 
         if direction == KeyCode.up:
@@ -383,7 +393,7 @@ class Dungeon:
 
         return True
 
-    def make_room(self, center_x, center_y, width, height, direction):
+    def make_room(self, center_x, center_y, width, height, direction, random):
         room_width = random.randint(4, width)
         room_height = random.randint(4, height)
 
@@ -492,11 +502,11 @@ class Dungeon:
 
         return True
 
-    def generate_map(self):
+    def generate_map(self, random):
         room_chance = 70
         current_features = 1
 
-        self.make_room(self.map_width // 2, self.map_height // 2, 5, 5, KeyCode(random.randint(0, 3)))
+        self.make_room(self.map_width // 2, self.map_height // 2, 5, 5, KeyCode(random.randint(0, 3)), random)
 
         for _ in range(1000):
             if current_features >= self.max_features:
@@ -537,11 +547,11 @@ class Dungeon:
                 feature = random.randint(0, 100)
 
                 if feature <= room_chance:
-                    if self.make_room(new_x + x_mod, new_y + y_mod, 20, 20, direction):
+                    if self.make_room(new_x + x_mod, new_y + y_mod, 20, 20, direction, random):
                         self.set_block(new_x, new_y, False)
                         self.set_block(new_x + x_mod, new_y + y_mod, False)
                 elif feature > room_chance:
-                    if self.make_tunnel(new_x + x_mod, new_y + y_mod, 10, direction):
+                    if self.make_tunnel(new_x + x_mod, new_y + y_mod, 10, direction, random):
                         self.set_block(new_x, new_y, False)
 
                 current_features += 1
@@ -578,7 +588,7 @@ class TextArea:
 
 
 class Game:
-    def __init__(self, game_data):
+    def __init__(self, game_data, save_handler=None, random_seed=None):
         self.game_data = game_data
 
         self._buffer = [[(' ', (0, 0, 0)) for _ in range(screen_width)] for _ in range(screen_height)]
@@ -586,6 +596,8 @@ class Game:
         # UI 생성
         self.text_area = TextArea(self, 0, 42)
         self.status_bar = TextArea(self, 0, 40, 1)
+        self.save_handler = save_handler
+        self.random_seed = random_seed
         self._player, self._object_list, self._dungeon = self.initialize(self.game_data)
 
     def draw_char(self, x, y, char, color):
@@ -650,10 +662,12 @@ class Game:
             player.move(1, 0)
 
     def initialize(self, game_data):
+        random = Random(self.random_seed)
+
         # 던전 생성 및 맵 자동 생성
         _object_list = list()
         _dungeon = Dungeon(self, game_data, _object_list)
-        _dungeon.generate_map()
+        _dungeon.generate_map(random)
 
         # 몬스터, 아이템 생성 및 배치
         for k, v in game_data['entries'].items():
@@ -700,3 +714,15 @@ class Game:
                 break
 
         return _player, _object_list, _dungeon
+
+    def save(self):
+        if self.save_handler:
+            game_data = pickle.dumps(self)
+            b64_game_data = base64.b64encode(game_data)
+            self.save_handler(self._player.name, self._player.turn_count, b64_game_data)
+
+    @classmethod
+    def load(cls, b64_game_data):
+        game_data = base64.b64decode(b64_game_data)
+        game = pickle.loads(game_data)
+        return game

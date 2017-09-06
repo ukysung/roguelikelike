@@ -80,5 +80,13 @@
         "width": 80,
         "height": 40,
         "features": 500
+    },
+    "mysql":
+    {
+        "user": "",
+        "password": "",
+        "database": "",
+        "host": "localhost",
+        "port": 3306
     }
 }

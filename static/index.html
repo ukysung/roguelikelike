@@ -1,17 +1,69 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <meta charset="utf-8">
+</head>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.6.4/js/jquery.terminal.min.js"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.6.4/css/jquery.terminal.min.css" rel="stylesheet"/>
 <body>
-    <div id="term">
+    <div id="wrapper">
+        <div style="height: 800px;width: 500px;display: table;margin: 0 auto;">
+            <h1 class="shadow">ROGUELIKELIKE</h1>
+            <div id="term">
+            </div>
+            <div class="shadow">
+                <p>
+                    <h3>설명서</h3>
+                    몬스터를 피해 던전을 탈출하세요!<br>
+                    방향키로 이동, 몬스터를 공격<br>
+                    <span style="color:#0000FF">@</span> : 플레이어<br>
+                    <span style="color:#FFFFFF">G</span> : 탈출구<br>
+                    <span style="color:#FF0000">B</span> : 몬스터(박쥐)<br>
+                    <span style="color:#FF0000">O</span> : 몬스터(오크)<br>
+                    <span style="color:#FF0000">D</span> : 몬스터(데빌)<br>
+                    <span style="color:#00FF00">H</span> : 아이템(회복약)<br>
+                    <span style="color:#00FF00">P</span> : 아이템(무기)<br>
+                    <span style="color:#00FF00">D</span> : 아이템(방어구)<br>
+                    <span style="color:#00FF00">s</span> : 아이템(시야증가)<br>
+                </p>
+            </div>
+        </div>
     </div>
 </body>
 <style>
     .terminal, .cmd, .terminal .terminal-output div div, .cmd .prompt {
-        font-size: 15px;
-        line-height: 12px;
+        font-size: 16px;
+        line-height: 13px;
+        font-family: "DungGeunMo";
     }
+    #wrapper {
+        background-color: #01002c;
+        //background-image: url("/static/maze.png");
+        background-repeat: repeat;
+        background-size: 25%;
+        background-position: 100% 0;
+        color: #FFFFFF;
+    }
+    .shadow {
+        text-shadow: 2px 2px #000000;
+    }
+    @font-face {
+      font-family: "DungGeunMo";
+      src: url("/static/DungGeunMo.woff");
+    }
+    body {
+        font-family: "DungGeunMo";
+        margin: 0;
+    }
+    .view {
+        display: inline-block;
+    }
+    @media (min-width: 576px) {
+        .view {
+            display: block;
+    }
+}
 </style>
 <script type="text/javascript">
     jQuery(function($, undefined) {
@@ -20,8 +72,11 @@
         }, {
             greetings: null,
             wrap: false,
+            width: 700,
+            height: 700,
             numChars: 80,
             numRows: 50,
+            scrollBottomOffset: 50,
             echoCommand: false,
             prompt: '',
             onBlur: function() {
@@ -40,17 +95,15 @@
                     });
                 }
             },
-            onInit: function (e, term) {
-                if ([37, 38, 39, 40].indexOf(e.which) > -1) {
-                    $.post('/command', {direction: e.which}).then(function(response) {
-                        if (response != '')
-                        {
-                            term.pause();
-                            term.clear();
-                            term.echo(response).resume();
-                        }
-                    });
-                }
+            onInit: function (term) {
+                $.post('/login').then(function(response) {
+                    if (response != '')
+                    {
+                        term.pause();
+                        term.clear();
+                        term.echo(response).resume();
+                    }
+                });
             }
         });
     });
