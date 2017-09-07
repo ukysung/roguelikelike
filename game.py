@@ -44,13 +44,13 @@ class GameObject:
 
 
 class Player(GameObject):
-    def __init__(self, game, x, y, icon_char, player_data, dungeon):
+    def __init__(self, game, x, y, icon_char, player_data, dungeon, user_name):
         self.max_hp = player_data['max_hp']
         self.hp = self.max_hp
         self.defence = player_data['defence']
         self.power = player_data['power']
         self.sight = player_data['sight']
-        self.name = player_data['name']
+        self.name = user_name
         self.end = False
         self.turn_count = 0
         super().__init__(game, x, y, icon_char, tuple(player_data['color']), dungeon)
@@ -588,7 +588,7 @@ class TextArea:
 
 
 class Game:
-    def __init__(self, game_data, save_handler=None, random_seed=None):
+    def __init__(self, game_data, user_name, save_handler=None, random_seed=None):
         self.game_data = game_data
 
         self._buffer = [[(' ', (0, 0, 0)) for _ in range(screen_width)] for _ in range(screen_height)]
@@ -598,7 +598,8 @@ class Game:
         self.status_bar = TextArea(self, 0, 40, 1)
         self.save_handler = save_handler
         self.random_seed = random_seed
-        self._player, self._object_list, self._dungeon = self.initialize(self.game_data)
+        self.user_name = user_name
+        self._player, self._object_list, self._dungeon = self.initialize()
 
     def draw_char(self, x, y, char, color):
         self._buffer[y][x] = (char, color)
@@ -610,7 +611,7 @@ class Game:
             key_event = yield self.render()
 
             if self._player.is_end():
-                self._player, self._object_list, self._dungeon = self.initialize(self.game_data)
+                self._player, self._object_list, self._dungeon = self.initialize()
                 self.text_area.clear()
 
             exit_game = self.handle_keys(self._player, key_event)
@@ -661,18 +662,18 @@ class Game:
         if key_event is KeyCode.right:
             player.move(1, 0)
 
-    def initialize(self, game_data):
+    def initialize(self):
         random = Random(self.random_seed)
 
         # 던전 생성 및 맵 자동 생성
         _object_list = list()
-        _dungeon = Dungeon(self, game_data, _object_list)
+        _dungeon = Dungeon(self, self.game_data, _object_list)
         _dungeon.generate_map(random)
 
         # 몬스터, 아이템 생성 및 배치
-        for k, v in game_data['entries'].items():
-            if k in game_data['monsters']:
-                monster_data = game_data['monsters'][k]
+        for k, v in self.game_data['entries'].items():
+            if k in self.game_data['monsters']:
+                monster_data = self.game_data['monsters'][k]
 
                 num_monsters = v
                 while num_monsters > 0:
@@ -683,8 +684,8 @@ class Game:
                         _object_list.append(monster)
                         num_monsters -= 1
 
-            elif k in game_data['items']:
-                item_data = game_data['items'][k]
+            elif k in self.game_data['items']:
+                item_data = self.game_data['items'][k]
 
                 num_items = v
                 while num_items > 0:
@@ -700,8 +701,8 @@ class Game:
             x = random.randint(0, _dungeon.map_width - 1)
             y = random.randint(0, _dungeon.map_height - 1)
             if not _dungeon.is_block(x, y):
-                for k, v in game_data['characters'].items():
-                    _player = Player(self, x, y, k, game_data['characters'][k], _dungeon)
+                for k, v in self.game_data['characters'].items():
+                    _player = Player(self, x, y, k, self.game_data['characters'][k], _dungeon, self.user_name)
                     _object_list.append(_player)
                 break
 
