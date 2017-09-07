@@ -662,6 +662,11 @@ class Game:
         if key_event is KeyCode.right:
             player.move(1, 0)
 
+    def _distance_to(self, obj, x, y):
+        dx = obj.x - x
+        dy = obj.y - y
+        return math.sqrt(dx ** 2 + dy ** 2)
+
     def initialize(self):
         random = Random(self.random_seed)
 
@@ -710,7 +715,8 @@ class Game:
         while True:
             x = random.randint(0, _dungeon.map_width - 1)
             y = random.randint(0, _dungeon.map_height - 1)
-            if not _dungeon.is_block(x, y):
+            distance = self._distance_to(_player, x, y)
+            if not _dungeon.is_block(x, y) and distance >= self.game_data['dungeon']['goal_distance']:
                 _object_list.append(Goal(self, x, y, _dungeon))
                 break
 
