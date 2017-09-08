@@ -19,10 +19,10 @@
                 <div id="term" class="game"></div>
                 <div class="keyboard shadow">
                     모바일 키보드<br>
-                    <span class="key" onclick="command(37)">◀</span>
-                    <span class="key" onclick="command(38)">▲</span>
-                    <span class="key" onclick="command(40)">▼</span>
-                    <span class="key" onclick="command(39)">▶</span>
+                    <span class="key" onclick="command(37)">&#8678;</span>
+                    <span class="key" onclick="command(38)">&#8679;</span>
+                    <span class="key" onclick="command(40)">&#8681;</span>
+                    <span class="key" onclick="command(39)">&#8680;</span>
                 </div>
                 <div class="shadow">
                     <div class="game sub_area">
@@ -107,15 +107,16 @@
         width: 50%;
     }
     .keyboard {
-        text-align:center;
-        display:none;
+        text-align: center;
+        display: none;
     }
     .key {
-        display:inline-block;
-        border:5px solid white;
-        padding:7px;
-        margin-bottom:5px;
+        display: inline-block;
+        border: 5px solid white;
+        padding: 10px;
         border-radius: 7px;
+        font-size: 150%;
+        width: 15%;
     }
 </style>
 <script type="text/javascript">
@@ -166,7 +167,7 @@
             }, {
                 greetings: null,
                 wrap: false,
-                width: 700,
+                width: 750,
                 height: 700,
                 numChars: 80,
                 numRows: 50,
@@ -183,7 +184,7 @@
                     }
                 },
                 onInit: function (term) {
-                    termObj = term
+                    termObj = term;
 
                     $.post('/login',{user_name: text}).then(function(response) {
                         if (response != '')
