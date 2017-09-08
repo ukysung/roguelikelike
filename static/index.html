@@ -2,10 +2,12 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=550, user-scalable=no">
 </head>
 <link rel="shortcut icon" type="image/png" href="/static/favicon.png" />
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.6.4/js/jquery.terminal.min.js"></script>
+<script src="/static/jquery.touchSwipe.min.js"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.6.4/css/jquery.terminal.min.css" rel="stylesheet"/>
 <body id="wrapper">
     <div>
@@ -17,13 +19,6 @@
             </div>
             <div id="main">
                 <div id="term" class="game"></div>
-                <div class="keyboard shadow">
-                    모바일 키보드<br>
-                    <span class="key" onclick="command(37)">&#8678;</span>
-                    <span class="key" onclick="command(38)">&#8679;</span>
-                    <span class="key" onclick="command(40)">&#8681;</span>
-                    <span class="key" onclick="command(39)">&#8680;</span>
-                </div>
                 <div class="shadow">
                     <div class="game sub_area">
                         <p>
@@ -106,18 +101,6 @@
         float: left;
         width: 50%;
     }
-    .keyboard {
-        text-align: center;
-        display: none;
-    }
-    .key {
-        display: inline-block;
-        border: 5px solid white;
-        padding: 10px;
-        border-radius: 7px;
-        font-size: 150%;
-        width: 15%;
-    }
 </style>
 <script type="text/javascript">
     termObj = null;
@@ -145,22 +128,23 @@
         }
 
         $('.game').hide();
-
+        
+        $('#term').swipe({
+            swipe:function (event, direction, distance, duration, fingerCount, fingerData) {
+                if (direction == 'right')
+                    command(39);
+                else if (direction == 'left')
+                    command(37);
+                else if (direction == 'up')
+                    command(38);
+                else if (direction == 'down')
+                    command(40);
+            }
+        });
+        
         $('#input_text').bind("enterKey",function(e, text) {
             $('.login').hide();
             $('.game').show();
-
-            if( navigator.userAgent.match(/Android/i)
-            || navigator.userAgent.match(/webOS/i)
-            || navigator.userAgent.match(/iPhone/i)
-            || navigator.userAgent.match(/iPad/i)
-            || navigator.userAgent.match(/iPod/i)
-            || navigator.userAgent.match(/BlackBerry/i)
-            || navigator.userAgent.match(/Windows Phone/i)
-            ){
-                $('.keyboard').show();
-                $('#term').width(550);
-            }
 
             $('#term').terminal(function(command, term) {
 
