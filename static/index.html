@@ -115,6 +115,7 @@
         border:5px solid white;
         padding:7px;
         margin-bottom:5px;
+        border-radius: 7px;
     }
 </style>
 <script type="text/javascript">
@@ -157,8 +158,8 @@
             || navigator.userAgent.match(/Windows Phone/i)
             ){
                 $('.keyboard').show();
+                $('#term').width(550);
             }
-            $('.keyboard').show();
 
             $('#term').terminal(function(command, term) {
 
