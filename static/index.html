@@ -7,41 +7,42 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.6.4/js/jquery.terminal.min.js"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.6.4/css/jquery.terminal.min.css" rel="stylesheet"/>
-<body>
-    <div id="wrapper">
-        <div style="height: 800px;width: 500px;display: table;margin: 0 auto;">
+<body id="wrapper">
+    <div>
+        <div style="display: table;margin: auto;">
             <h1 class="shadow">ROGUELIKELIKE</h1>
-            <div id="term" class="game">
-            </div>
-            <div class="login">
+            <div class="login shadow">
                 <h2>로그인</h2>
                 이름 : <input type="text" id="input_text" class="prompt ">
             </div>
-            <div class="shadow">
-                <div class="game" style="float: left; width: 50%;">
-                    <p>
-                        <h3>설명서</h3>
-                        몬스터를 피해 던전을 탈출하세요!<br>
-                        방향키로 이동, 몬스터를 공격<br>
-                        <span style="color:#0000FF">@</span> : 플레이어<br>
-                        <span style="color:#FFFFFF">G</span> : 탈출구<br>
-                        <span style="color:#FF0000">B</span> : 몬스터(박쥐)<br>
-                        <span style="color:#FF0000">O</span> : 몬스터(오크)<br>
-                        <span style="color:#FF0000">D</span> : 몬스터(데빌)<br>
-                        <span style="color:#00FF00">H</span> : 아이템(회복약)<br>
-                        <span style="color:#00FF00">P</span> : 아이템(무기)<br>
-                        <span style="color:#00FF00">D</span> : 아이템(방어구)<br>
-                        <span style="color:#00FF00">s</span> : 아이템(시야증가)<br>
-                    </p>
-                </div>
-                <div class="game" style="float: left; width: 50%;">
-                    <h3>명예의 전당</h3>
-                    <table id="rank" class="table_center">
-                        <thead>
-                            <tr><th>순위</th><th>이름</th><th>턴</th></tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+            <div id="main">
+                <div id="term" class="game"></div>
+                <div class="shadow">
+                    <div class="game sub_area">
+                        <p>
+                            <h3>설명서</h3>
+                            몬스터를 피해 던전을 탈출하세요!<br>
+                            방향키로 이동, 몬스터를 공격<br>
+                            <span style="color:#0000FF">@</span> : 플레이어<br>
+                            <span style="color:#FFFFFF">G</span> : 탈출구<br>
+                            <span style="color:#FF0000">B</span> : 몬스터(박쥐)<br>
+                            <span style="color:#FF0000">O</span> : 몬스터(오크)<br>
+                            <span style="color:#FF0000">D</span> : 몬스터(데빌)<br>
+                            <span style="color:#00FF00">H</span> : 아이템(회복약)<br>
+                            <span style="color:#00FF00">P</span> : 아이템(무기)<br>
+                            <span style="color:#00FF00">D</span> : 아이템(방어구)<br>
+                            <span style="color:#00FF00">s</span> : 아이템(시야증가)<br>
+                        </p>
+                    </div>
+                    <div class="game sub_area">
+                        <h3>명예의 전당</h3>
+                        <table id="rank" class="table_center">
+                            <thead>
+                                <tr><th>순위</th><th>이름</th><th>턴</th></tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -63,41 +64,42 @@
     }
     .shadow {
         text-shadow: 2px 2px #000000;
+        font-family: "DungGeunMo";
     }
     @font-face {
       font-family: "DungGeunMo";
       src: url("/static/DungGeunMo.woff");
     }
-    body {
-        font-family: "DungGeunMo";
-        margin: 0;
+    .floatter {
+        float: left;
+        margin: 5px;
+        padding: 15px;
+        max-width: 300px;
+        height: 300px;
     }
-    .view {
-        display: inline-block;
-    }
-    @media (min-width: 576px) {
-        .view {
-            display: block;
-        }
-    }
-    .table_center
-    {
+    .table_center {
         text-align: center;
         vertical-align: middle;
-        //text-overflow: ellipsis;
-        //white-space: nowrap;
     }
-    #input_text
-    {
+    #input_text {
         background: transparent;
         border: none;
         font-family: "DungGeunMo";
         font-size: 16px;
         color: #FFFFFF;
     }
-    .game
-    {
+    .game {
         display:none;
+    }
+
+    #term {
+        width: 500px;
+        height: 800px;
+    }
+
+    .sub_area{
+        float: left;
+        width: 50%;
     }
 </style>
 <script type="text/javascript">
