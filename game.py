@@ -35,6 +35,9 @@ class GameObject:
         if self.dungeon.can_move(self.x + dx, self.y + dy):
             self.x += dx
             self.y += dy
+            return True
+        else:
+            return False
 
     def draw(self):
         self.game.draw_char(self.x, self.y, self.char, self.color)
@@ -91,8 +94,6 @@ class Player(GameObject):
         x = self.x + dx
         y = self.y + dy
 
-        self.turn_count += 1
-
         for game_object in self.dungeon.get_objects():
             if game_object.x == x and game_object.y == y:
                 if type(game_object) is Monster:
@@ -100,19 +101,25 @@ class Player(GameObject):
                     break
                 elif type(game_object) is Item:
                     game_object.pick_up(self)
+                    self.turn_count += 1
                     break
                 elif type(game_object) is Goal:
                     game_object.touch(self)
+                    self.turn_count += 1
                     break
         else:
-            super().move(dx, dy)
+            if super().move(dx, dy):
+                self.turn_count += 1
 
         self.refresh_status_bar()
 
     def refresh_status_bar(self):
+        def dots(string, length):
+            return (string[:length] + '..') if len(string) > length else string
+
         self.game.status_bar(
             '{} - hp[{}] power[{}] defence[{}] sight[{}] turn[{}]'.format(
-                self.name,
+                dots(self.name, 8),
                 self.hp,
                 self.power,
                 self.defence,
