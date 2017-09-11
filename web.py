@@ -1,6 +1,7 @@
 import json
 import os
 import datetime
+import threading
 from flask import Flask, session, request, send_from_directory, jsonify
 from flask.ext.mysql import MySQL
 from game import KeyCode, Game
@@ -61,10 +62,27 @@ def save_callback(player_name, player_turn_count, game_data):
     mysql.get_db().commit()
 
 
+class ThreadSafeIter:
+    def __init__(self, it):
+        self.it = it
+        self.lock = threading.Lock()
+
+    def __iter__(self):
+        return self
+
+    def next(self, *args, **kwargs):
+        with self.lock:
+            return self.it.next(*args, **kwargs)
+
+    def send(self, *args, **kwargs):
+        with self.lock:
+            return self.it.send(*args, **kwargs)
+
+
 def init_user(user_name):
     random_seed = session.get('random_seed', None)
     game = Game(server_data, user_name, save_callback, random_seed)
-    game_context = game.turn()
+    game_context = ThreadSafeIter(game.turn())
     map_data = game_context.send(None)
     game_session[user_name] = game_context
     session['user_name'] = user_name
