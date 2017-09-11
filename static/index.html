@@ -25,7 +25,8 @@
                         <p>
                             <h3>설명서</h3>
                             몬스터를 피해 던전을 탈출하세요!<br>
-                            방향키로 이동, 몬스터를 공격<br>
+                            <span id="pc_info">방향키로 이동, 몬스터를 공격<br></span>
+                            <span id="mobile_info">스와이프로 이동, 몬스터를 공격<br></span>
                             <span style="color:#5555FF">@</span> : 플레이어<br>
                             <span style="color:#ffffff">G</span> : 탈출구<br>
                             <span style="color:#ff5555">B</span> : 몬스터(박쥐)<br>
@@ -130,22 +131,38 @@
 
         $('.game').hide();
         
-        $('#term').swipe({
-            swipe:function (event, direction, distance, duration, fingerCount, fingerData) {
-                if (direction == 'right')
-                    command(39);
-                else if (direction == 'left')
-                    command(37);
-                else if (direction == 'up')
-                    command(38);
-                else if (direction == 'down')
-                    command(40);
-            }
-        });
-        
         $('#input_text').bind("enterKey",function(e, text) {
             $('.login').hide();
             $('.game').show();
+
+            // is mobile browser
+            if( navigator.userAgent.match(/Android/i)
+            || navigator.userAgent.match(/webOS/i)
+            || navigator.userAgent.match(/iPhone/i)
+            || navigator.userAgent.match(/iPad/i)
+            || navigator.userAgent.match(/iPod/i)
+            || navigator.userAgent.match(/BlackBerry/i)
+            || navigator.userAgent.match(/Windows Phone/i)
+            ){
+                $('#mobile_info').show();
+                $('#pc_info').hide();
+                $('#term').swipe({
+                    swipe: function (event, direction, distance, duration, fingerCount, fingerData) {
+                    if (direction == 'right')
+                        command(39);
+                    else if (direction == 'left')
+                        command(37);
+                    else if (direction == 'up')
+                        command(38);
+                    else if (direction == 'down')
+                        command(40);
+                    }
+                });
+            }
+            else {
+                $('#mobile_info').hide();
+                $('#pc_info').show();
+            }
 
             $('#term').terminal(function(command, term) {
 
