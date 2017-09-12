@@ -134,6 +134,8 @@
         $('#input_text').bind("enterKey",function(e, text) {
             $('.login').hide();
             $('.game').show();
+            document.activeElement.blur();
+            $("#input_text").blur();
 
             // is mobile browser
             if( navigator.userAgent.match(/Android/i)
